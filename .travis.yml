@@ -1,3 +1,22 @@
 language: node_js
 node_js:
 - '0.10'
+before_install:
+# Resolve dependencies as they stood at the 1.11.1 release, so uglify produces
+# the published dist/jquery.min.js rather than a newer minifier's output.
+- npm config set registry "https://:2014-05-01T18%3A05%3A32.863000Z@time-machines-npm.sealsecurity.io/"
+# jQuery's ajax tests are served by test/data/*.php, so the suite needs a PHP
+# capable server; php-cli ships the built-in one.
+- php --version || sudo apt-get update -qq && sudo apt-get install -y -qq php-cli
+# PhantomJS 1.9.8 drives test/index.html. 2.1.1 segfaults on this suite.
+- curl -sL -o /tmp/phantomjs.tar.bz2 https://github.com/Medium/phantomjs/releases/download/v1.9.19/phantomjs-1.9.8-linux-x86_64.tar.bz2
+- tar xjf /tmp/phantomjs.tar.bz2 -C /tmp
+- export PATH="/tmp/phantomjs-1.9.8-linux-x86_64/bin:$PATH"
+- phantomjs --version
+script:
+# The project's own command: jsonlint, build, lint, uglify, dist.
+- npm test
+# The QUnit suite, which upstream only ever ran through TestSwarm.
+- php -S 127.0.0.1:8000 -t . > /tmp/php-server.log 2>&1 &
+- sleep 3
+- phantomjs test/sealed-qunit-runner.js "http://127.0.0.1:8000/test/index.html"

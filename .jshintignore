@@ -10,3 +10,5 @@ test/data/readywaitasset.js
 test/data/readywaitloader.js
 test/data/support/csp.js
 test/data/support/getComputedSupport.js
+test/sealed-qunit-runner.js
+test/data/sealed-phantom-skips.js

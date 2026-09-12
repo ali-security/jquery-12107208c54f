@@ -1,0 +1,44 @@
+name: build-pack
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and pack under Node 0.10
+        run: |
+          docker run --rm -v "$PWD":/src -w /src node:0.10-wheezy bash -c '
+            set -e
+            npm config set registry "https://:2014-05-01T18%3A05%3A32.863000Z@time-machines-npm.sealsecurity.io/"
+            npm install
+            ./node_modules/.bin/grunt
+            # build/tasks/build.js stamps the banner from the wall clock. Pin it to the
+            # 1.11.1 release timestamp so dist/jquery.js is byte-identical to the
+            # published artifact. Same string length as the generated one, so the
+            # already-built dist/jquery.min.map offsets stay valid. Done here rather
+            # than in build/tasks/build.js because this build harness does not carry
+            # edits under build/. The .*T.*Z match is required: dist/jquery.js has a
+            # second " * Date:" line (Sizzle, 2014-04-18) that an unanchored .* would
+            # also rewrite and corrupt.
+            sed -i "s|^ \* Date: .*T.*Z| * Date: 2014-05-01T17:42Z|" dist/jquery.js
+            node .github/cdn-copies.js
+            # .npmignore has no /.github entry and the published tarball ships
+            # .npmignore verbatim, so drop this directory from the tree rather than
+            # editing .npmignore to exclude it.
+            rm -rf .github
+            npm pack
+          '
+
+      - name: Show tarball
+        run: ls -l jquery-1.11.1.tgz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball
+          path: jquery-1.11.1.tgz
+          if-no-files-found: error
